@@ -16,6 +16,7 @@ limitations under the License.
 package golang
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,6 +41,15 @@ func TestOtherFileInfo(t *testing.T) {
 			"foo.c",
 			`// +build foo bar
 // +build baz,!ignore
+
+`,
+			[]tagLine{{{"foo"}, {"bar"}}, {{"baz", "!ignore"}}},
+		},
+		{
+			"tags file",
+			"foo.c",
+			`//go:build foo bar
+//go:build baz,!ignore
 
 `,
 			[]tagLine{{{"foo"}, {"bar"}}, {{"baz", "!ignore"}}},
@@ -258,7 +268,7 @@ func TestFileNameInfo(t *testing.T) {
 }
 
 func TestReadTags(t *testing.T) {
-	for _, tc := range []struct {
+	tcs := []struct {
 		desc, source string
 		want         []tagLine
 	}{
@@ -268,53 +278,76 @@ func TestReadTags(t *testing.T) {
 			nil,
 		},
 		{
-			"single comment without blank line",
-			"// +build foo\npackage main",
+			"multiple comments of different types",
+			`// +build foo
+//go:build bar
+// +build baz
+//go:build qux
+
+package main`,
+			[]tagLine{{{"foo"}}, {{"bar"}}, {{"baz"}}, {{"qux"}}},
+		},
+	}
+	for _, tcf := range []struct {
+		desc, source string
+		want         []tagLine
+	}{
+		{
+			"single comment without blank line (%[1]s)",
+			"//%[1]s foo\npackage main",
 			nil,
 		},
 		{
-			"multiple comments without blank link",
-			`// +build foo
+			"multiple comments without blank link (%[1]s)",
+			`//%[1]s foo
 
-// +build bar
+//%[1]s bar
 package main
 
 `,
 			[]tagLine{{{"foo"}}},
 		},
 		{
-			"single comment",
-			"// +build foo\n\n",
+			"single comment (%[1]s)",
+			"//%[1]s foo\n\n",
 			[]tagLine{{{"foo"}}},
 		},
 		{
-			"multiple comments",
-			`// +build foo
-// +build bar
+			"multiple comments (%[1]s)",
+			`//%[1]s foo
+//%[1]s bar
 
 package main`,
 			[]tagLine{{{"foo"}}, {{"bar"}}},
 		},
 		{
-			"multiple comments with blank",
-			`// +build foo
+			"multiple comments with blank (%[1]s)",
+			`//%[1]s foo
 
-// +build bar
+//%[1]s bar
 
 package main`,
 			[]tagLine{{{"foo"}}, {{"bar"}}},
 		},
 		{
-			"comment with space",
-			"  //   +build   foo   bar  \n\n",
+			"comment with space (%[1]s)",
+			"  //  %[1]s   foo   bar  \n\n",
 			[]tagLine{{{"foo"}, {"bar"}}},
 		},
 		{
-			"slash star comment",
-			"/* +build foo */\n\n",
+			"slash star comment (%[1]s)",
+			"/*%[1]s foo */\n\n",
 			nil,
 		},
 	} {
+		for _, prefix := range []string{" +build", "go:build"} {
+			tc := tcf
+			tc.desc = fmt.Sprintf(tc.desc, prefix)
+			tc.source = fmt.Sprintf(tc.source, prefix)
+			tcs = append(tcs, tc)
+		}
+	}
+	for _, tc := range tcs {
 		f, err := ioutil.TempFile(".", "TestReadTags")
 		if err != nil {
 			t.Fatal(err)

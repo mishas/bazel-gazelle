@@ -40,7 +40,7 @@ import (
 
 // fileInfo holds information used to decide how to build a file. This
 // information comes from the file's name, from package and import declarations
-// (in .go files), and from +build and cgo comments.
+// (in .go files), and from +build/go:build and cgo comments.
 type fileInfo struct {
 	path string
 	name string
@@ -81,7 +81,7 @@ type fileInfo struct {
 	goos, goarch string
 
 	// tags is a list of build tag lines. Each entry is the trimmed text of
-	// a line after a "+build" prefix.
+	// a line after a "+build" or "go:build" prefix.
 	tags []tagLine
 
 	// cppopts, copts, cxxopts and clinkopts contain flags that are part
@@ -567,7 +567,7 @@ func safeCgoName(s string, spaces bool) bool {
 // readTags reads and extracts build tags from the block of comments
 // and blank lines at the start of a file which is separated from the
 // rest of the file by a blank line. Each string in the returned slice
-// is the trimmed text of a line after a "+build" prefix.
+// is the trimmed text of a line after a "+build" or "go:build" prefix.
 // Based on go/build.Context.shouldBuild.
 func readTags(path string) ([]tagLine, error) {
 	f, err := os.Open(path)
@@ -602,7 +602,7 @@ func readTags(path string) ([]tagLine, error) {
 	var tagLines []tagLine
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) > 0 && fields[0] == "+build" {
+		if len(fields) > 0 && (fields[0] == "+build" || fields[0] == "go:build") {
 			tagLines = append(tagLines, parseTagsInGroups(fields[1:]))
 		}
 	}
@@ -673,8 +673,8 @@ func matchesOS(os, value string) bool {
 //
 // The remaining arguments describe the file being tested. All of these may
 // be empty or nil. osSuffix and archSuffix are filename suffixes. fileTags
-// is a list tags from +build comments found near the top of the file. cgoTags
-// is an extra set of tags in a #cgo directive.
+// is a list tags from +build/go:build comments found near the top of the file.
+// cgoTags is an extra set of tags in a #cgo directive.
 func checkConstraints(c *config.Config, os, arch, osSuffix, archSuffix string, fileTags []tagLine, cgoTags tagLine) bool {
 	if osSuffix != "" && !matchesOS(os, osSuffix) || archSuffix != "" && archSuffix != arch {
 		return false

@@ -107,7 +107,7 @@ import "C"
 			},
 		},
 		{
-			"build tags",
+			"build tags (+build)",
 			"foo.go",
 			`// +build linux darwin
 
@@ -121,11 +121,41 @@ package foo
 			},
 		},
 		{
-			"build tags without blank line",
+			"build tags without blank line (+build)",
 			"route.go",
 			`// Copyright 2017
 
 // +build darwin dragonfly freebsd netbsd openbsd
+
+// Package route provides basic functions for the manipulation of
+// packet routing facilities on BSD variants.
+package route
+`,
+			fileInfo{
+				packageName: "route",
+				tags:        []tagLine{{{"darwin"}, {"dragonfly"}, {"freebsd"}, {"netbsd"}, {"openbsd"}}},
+			},
+		},
+		{
+			"build tags (go:build)",
+			"foo.go",
+			`//go:build linux darwin
+
+//go:build !ignore
+
+package foo
+`,
+			fileInfo{
+				packageName: "foo",
+				tags:        []tagLine{{{"linux"}, {"darwin"}}, {{"!ignore"}}},
+			},
+		},
+		{
+			"build tags without blank line (go:build)",
+			"route.go",
+			`// Copyright 2017
+
+//go:build darwin dragonfly freebsd netbsd openbsd
 
 // Package route provides basic functions for the manipulation of
 // packet routing facilities on BSD variants.
